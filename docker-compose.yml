@@ -1,0 +1,391 @@
+version: "3.4"
+
+networks:
+  media-network:
+    driver: bridge
+
+services:
+  # authelia:
+  #   container_name: authelia
+  #   image: authelia/authelia
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ${HOME}/containers/authelia/config:/config
+  #   networks:
+  #     - media-network
+  #   expose:
+  #     - 9091
+  #   environment:
+  #     - TZ=${TZ}
+
+  duckdns:
+    container_name: duckdns
+    image: linuxserver/duckdns
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/containers/duckdns/config:/config
+    environment:
+      - TZ=${TZ}
+      - LOG_FILE=false
+      - SUBDOMAINS=${DUCKDNS_SUBDOMAINS}
+      - TOKEN=${DUCKDNS_TOKEN}
+
+  jackett:
+    container_name: jackett
+    image: linuxserver/jackett
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 4.4.4.4
+    networks:
+      - media-network
+    ports:
+      - 9117:9117
+    volumes:
+      - ${HOME}/containers/jackett/config:/config
+      - ${HOME}/containers/jackett/downloads:/downloads
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+
+  # letsencrypt:
+  #   container_name: letsencrypt
+  #   image: linuxserver/letsencrypt
+  #   restart: unless-stopped
+  #   cap_add:
+  #     - NET_ADMIN
+  #   networks:
+  #     - media-network
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   volumes:
+  #     - ${HOME}/containers/letsencrypt/config:/config
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - TZ=${TZ}
+  #     - EMAIL=${LETSENCRYPT_EMAIL}
+  #     - URL=${LETSENCRYPT_URL}
+  #     - VALIDATION=dns
+  #     - SUBDOMAINS=wildcard
+  #     - DNSPLUGIN=cloudflare
+      # - VALIDATION=duckdns
+      # - DUCKDNSTOKEN=${DUCKDNS_TOKEN}
+
+  # nzbhydra2:
+  #   container_name: nzbhydra2
+  #   image: linuxserver/nzbhydra2
+  #   restart: unless-stopped
+  #   dns: 192.168.0.1
+  #   depends_on:
+  #     - jackett
+  #   networks:
+  #     - media-network
+  #   ports:
+  #     - 5076:5076
+  #   volumes:
+  #     - ${HOME}/containers/nzbhydra2/config:/config
+  #     - ${NAS_MOUNT_POINT}/transmission/watch:/watch
+  #     - ${NAS_MOUNT_POINT}/transmission/completed:/downloads
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - UMASK=002
+  #     - TZ=${TZ}
+
+  # ombi:
+  #   container_name: ombi
+  #   image: linuxserver/ombi
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ${HOME}/containers/ombi/config:/config
+  #   networks:
+  #     - media-network
+  #   ports:
+  #     - 3579:3579
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - UMASK=002
+  #     - TZ=${TZ}
+
+  # ombibot:
+  #   build:
+  #     context: ombibot
+  #     dockerfile: Dockerfile
+  #   container_name: ombibot
+  #   restart: unless-stopped
+  #   # volumes:
+  #   #   - ${HOME}/containers/ombibot/config:/ombibot-config
+  #   networks:
+  #     - media-network
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - TZ=${TZ}
+  #     # - OMBI_BOT_SLACK_CLIENT_ID=${OMBI_BOT_SLACK_CLIENT_ID}
+  #     # - OMBI_BOT_SLACK_CLIENT_SECRET=${OMBI_BOT_SLACK_CLIENT_SECRET}
+  #     # - OMBI_BOT_TMDB_API_KEY=${OMBI_BOT_TMDB_API_KEY}
+  #     # - OMBI_BOT_TVDB_API_KEY=${OMBI_BOT_TVDB_API_KEY}
+
+  organizr:
+    container_name: organizr
+    # image: organizr/organizr:arm
+    image: organizr/organizr
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/containers/organizr/config:/config
+    networks:
+      - media-network
+    ports:
+      - 8080:80
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+
+  # pihole:
+  #   container_name: pihole
+  #   image: pihole/pihole:latest
+  #   restart: unless-stopped
+  #   volumes:
+  #      - '${HOME}/containers/pihole/etc-pihole/:/etc/pihole/'
+  #      - '${HOME}/containers/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d/'
+  #   dns:
+  #     - 127.0.0.1
+  #     - 1.1.1.1
+  #   networks:
+  #     - media-network
+  #   cap_add:
+  #     - NET_ADMIN
+  #   ports:
+  #     - "53:53/tcp"
+  #     # - "53:53/udp"
+  #     - "192.168.0.4:53:53/udp"
+  #     # - "67:67/udp"
+  #     # - "80:80/tcp"
+  #     # - "443:443/tcp"
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - UMASK=002
+  #     - TZ=${TZ}
+  #     - ServerIP=${PIHOLE_SERVER_IP}
+  #     - WEBPASSWORD=${PIHOLE_WEBPASSWORD}
+  #     - VIRTUAL_HOST=${PIHOLE_VIRTUAL_HOST}
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer
+    command: -H unix:///var/run/docker.sock
+    restart: always
+    volumes:
+      - ${HOME}/containers/portainer/data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - media-network
+    ports:
+      - 9000:9000
+      - 8000:8000
+    environment:
+      - TZ=${TZ}
+
+  radarr:
+    container_name: radarr
+    image: hotio/radarr
+    restart: unless-stopped
+    depends_on:
+      # - nzbhydra2
+      - jackett
+      # - transmission
+    networks:
+      - media-network
+    ports:
+      - 7878:7878
+    volumes:
+      - ${HOME}/containers/radarr/config:/config
+      - ${NAS_MOUNT_POINT}:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+
+  redis:
+    container_name: redis
+    image: arm32v7/redis
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/containers/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - ${HOME}/containers/redis/data:/data
+    command:
+      - /usr/local/etc/redis/redis.conf
+    networks:
+      - media-network
+    environment:
+      - TZ=${TZ}
+
+  sonarr:
+    container_name: sonarr
+    image: hotio/sonarr:phantom
+    restart: unless-stopped
+    depends_on:
+      # - nzbhydra2
+      - jackett
+      # - transmission
+    networks:
+      - media-network
+    ports:
+      - 8989:8989
+    volumes:
+      - ${HOME}/containers/sonarr/config:/config
+      - ${NAS_MOUNT_POINT}:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+
+  tautulli:
+    container_name: tautulli
+    image: tautulli/tautulli
+    restart: unless-stopped
+    networks:
+      - media-network
+    ports:
+      - 8181:8181
+    volumes:
+      - ${HOME}/containers/tautulli/config:/config
+      - ${PLEX_MOUNT_POINT}/Library/Application\ Support/Plex\ Media\ Server/Logs:/plex_logs
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+
+  traktarr:
+    container_name: traktarr
+    image: eafxx/traktarr
+    restart: unless-stopped
+    networks:
+      - media-network
+    volumes:
+      - ${HOME}/containers/traktarr/config:/config
+      - ${NAS_MOUNT_POINT}:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+      - DELAY=2.5
+      - SORT=rating
+      - NOSEARCH=yes
+      - NOTIFICATIONS=yes
+      - BLACKLIST=yes
+      - RUNNOW=no
+      - SKIPUPDATE=no
+      - APP_BRANCH=master
+
+  transmission:
+    container_name: transmission
+    image: ${TRANSMISSION_IMAGE}
+    restart: unless-stopped
+    devices:
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - media-network
+    ports:
+      - 9099:9091
+      - 9099:9091/udp
+    volumes:
+      - ${NAS_MOUNT_POINT}/transmission:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+      - LOCAL_NETWORK=192.168.0.0/16
+
+      # OpenVPN
+      - OPENVPN_PROVIDER=${VPN_PROVIDER}
+      - OPENVPN_CONFIG=${VPN_CONFIG}
+      - OPENVPN_USERNAME=${VPN_USERNAME}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD}
+      - OPENVPN_OPTS=--inactive 3600 --ping 10 --ping-exit 60
+
+      # Torrents
+      - TRANSMISSION_TRASH_ORIGINAL_TORRENT_FILES=false
+      - TRANSMISSION_WATCH_DIR_ENABLED=true
+      - WEBPROXY_ENABLED=false
+
+  # tvheadend:
+  #   build:
+  #     context: tvheadend
+  #     dockerfile: Dockerfile
+  #   container_name: tvheadend
+  #   restart: unless-stopped
+  #   networks:
+  #     - media-network
+  #   # devices:
+  #   #   - /dev/dri:/dev/dri #optional
+  #   #   - /dev/dvb:/dev/dvb #optional
+  #   ports:
+  #     - 9981:9981
+  #     - 9982:9982
+  #   volumes:
+  #     -  ${HOME}/containers/tvheadend/config:/config
+  #     -  ${HOME}/containers/tvheadend/recordings:/recordings
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - TZ=${TZ}
+      # - RUN_OPTS=run options here #optional
+
+  # tvhproxy:
+  #   container_name: tvhproxy
+  #   image: 54cr4m3n70/tvhproxy
+  #   restart: unless-stopped
+  #   networks:
+  #     - media-network
+  #   ports:
+  #     - 5004:5004
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - TZ=${TZ}
+  #     # - TVH_TUNER_COUNT=6
+  #     # - TVH_PROFILE=<profile>
+  #     - TVH_URL=http://192.168.0.4:9981
+
+  plex:
+    container_name: plex
+    image: linuxserver/plex
+    restart: unless-stopped
+    ports:
+      - 32400:32400
+      - 1900:1900
+      - 3005:3005
+      - 5353:5353
+      - 8324:8324
+      - 32410:32410
+      - 32412:32412
+      - 32413:32413
+      - 32414:32414
+      - 32469:32469
+    networks:
+      - media-network
+    environment:
+      - PGID=${PGID}
+      - PUID=${PUID}
+      - UMASK=002
+      - TZ=${TZ}
+    volumes:
+      - ${HOME}/containers/plex/config:/config
+      - ${NAS_MOUNT_POINT}/media/tv:/tv
+      - ${NAS_MOUNT_POINT}/media/movies:/movies
